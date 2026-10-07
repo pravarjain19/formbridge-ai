@@ -92,7 +92,7 @@ export function validateExtraction(x: OcrExtraction, ctx: { servicesPerformedInU
       issues.push({
         code: "WITHHOLDING_ON_FOREIGN_SOURCE_SERVICES",
         severity: "error",
-        message: "US tax was withheld on services your client profile says were performed entirely outside the US. That income is foreign-source; seek a refund from the withholding agent or via Form 1040-NR before relying on an Indian FTC claim.",
+        message: "US tax was withheld on services performed entirely outside the US. That income is foreign-source; seek a refund from the withholding agent or via Form 1040-NR before relying on an Indian FTC claim.",
       });
     }
   }
