@@ -1,4 +1,4 @@
-# FormBridge.ai: module 1
+# FormBridge.ai
 
 US–India cross-border compliance for Indian freelancers, contractors and agencies. This module contains the database schema and the AI document-OCR engine.
 
@@ -10,6 +10,8 @@ US–India cross-border compliance for Indian freelancers, contractors and agenc
 ## Setup
 
 ```bash
+git clone https://github.com/pravarjain19/formbridge-ai.git
+cd formbridge-ai
 cp .env.example .env.local   # fill in Supabase + Anthropic keys
 npm install
 # Supabase SQL editor: run supabase/schema.sql
