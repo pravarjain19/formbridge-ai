@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { user } = await requireUser();
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 md:flex-row">
-      <aside className="md:w-52 md:shrink-0">
+      <aside className="md:w-52 md:shrink-0 print:hidden">
         <nav className="flex flex-wrap gap-1 md:flex-col">
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} className="rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-white">
