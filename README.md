@@ -1,25 +1,81 @@
 # FormBridge.ai
 
-US–India cross-border compliance for Indian freelancers, contractors and agencies. This module contains the database schema and the AI document-OCR engine.
+US–India cross-border compliance for Indian freelancers, contractors and agencies with US clients:
+- GST export invoices;
+- W-8BEN tracking;
+- US withholding checks;
+- foreign tax credit (Form 67 / Form 44).
 
-- `docs/RESEARCH.md`: verified 2026 rules (Form 67 → 44, 26AS → 168, W-8BEN, GST LUT) and the field-level reconciliation map.
-- `supabase/schema.sql`: tables, enums, generated columns, RLS policies and the private `tax-documents` Storage bucket.
-- `src/app/api/documents/[id]/parse/route.ts`: `POST` route. It loads an uploaded 1042-S, 1099 or remittance advice and extracts it with Claude structured outputs. It then runs deterministic validation and writes `ocr_runs` and `tax_withholdings`.
-- `src/lib/ocr/`: the Zod extraction schema, the model call, and the validation rules.
+## What's in it
 
-## Setup
+| Area | Where | What it does |
+|---|---|---|
+| DTAA calculator | `/calculator` | Correct US withholding, which W-8 / 8233 form to send, exposure without paperwork, estimated Indian FTC. No login. |
+| 1042-S check | `/` + `POST /api/ocr/preview` | Upload a 1042-S, 1099 or remittance advice. AI extraction plus rule checks. No login, nothing stored. |
+| Guides (SEO) | `/guides/*`, `sitemap.xml`, `robots.txt` | Five long-tail pages, each ending in a tool. |
+| Login | `/login` | Email magic link via Supabase Auth. |
+| Dashboard | `/app` | FY totals, LUT status, W-8 expiry and review to-dos. |
+| Clients & W-8 | `/app/clients` | Client master, W-8BEN / W-8BEN-E records with expiry. |
+| Invoices | `/app/invoices` | GST Rule 46 export invoice (LUT/IGST, SAC, INR value), print/PDF, payments with FIRC. |
+| Documents | `/app/documents` | Upload to private storage, OCR, validation issues, re-check. |
+| Tax credits | `/app/tax-credits` | Split 1042-S into dated deductions, SBI TT rate, credit per Indian FY, CSV for Form 67/44. |
+| Billing | `/app/billing`, `/api/razorpay/*` | Razorpay subscriptions (Free / Pro / Agency), webhook, monthly document-check quota. |
 
+**Code layout:**
+- `supabase/schema.sql`: all tables, row-level security, storage bucket and policies. Idempotent, so re-run it after pulling.
+- `src/lib/ocr/`: extraction schema, validation rules, and the providers (Claude, Gemini, offline mock).
+- `src/lib/tax/`: DTAA, FTC and date rules. `src/lib/invoice.ts`: invoice rules.
+- `docs/RESEARCH.md`: the verified 2026 tax rules. `docs/GO-TO-MARKET.md`: the SEO, community and cold-email playbook.
+
+## Run it locally
+
+**1. Quickest start: no accounts, no keys.** The calculator, the 1042-S check (mock data) and the guides work right away:
 ```bash
-git clone https://github.com/pravarjain19/formbridge-ai.git
-cd formbridge-ai
-cp .env.example .env.local   # fill in Supabase + Anthropic keys
 npm install
-# Supabase SQL editor: run supabase/schema.sql
-npm run dev
+cp .env.example .env.local
+npm run dev        # http://localhost:3000
 ```
 
-## Upload → parse flow
+**2. Full app** (dashboard, invoices, uploads) needs Supabase. Pick one:
 
-1. The client uploads the file to `tax-documents/<uid>/<documentId>/<filename>` and inserts a `documents` row with the same id.
-2. The client calls `POST /api/documents/<documentId>/parse`.
-3. The route returns `{ status: "parsed" | "needs_review", extraction, issues, withholdingId }`.
+**Option A: Supabase cloud.** The free plan is enough.
+1. Create a project at supabase.com.
+2. Run `supabase/schema.sql` in the SQL editor.
+3. Copy the URL and anon key into `.env.local`.
+4. Under Authentication → URL Configuration, add `http://localhost:3000/auth/callback`.
+
+**Option B: local Supabase** (needs Docker):
+```bash
+npx supabase init
+mkdir -p supabase/migrations && cp supabase/schema.sql supabase/migrations/20261007000000_init.sql
+npx supabase start          # prints the URL, anon key and service-role key
+```
+Login emails then arrive in Mailpit at http://127.0.0.1:54324.
+
+**3. AI document reading:** set `OCR_PROVIDER` in `.env.local`:
+- `mock`: sample data, free.
+- `gemini` + `GEMINI_API_KEY`: free tier. Use dummy documents only, because Google may use free-tier inputs.
+- `claude` + `ANTHROPIC_API_KEY`: for real user data.
+
+**4. Payments:**
+1. In Razorpay, create two monthly plans (₹499 and ₹1,999).
+2. Set `RAZORPAY_*`, `SUPABASE_SERVICE_ROLE_KEY` and `PAN_HASH_SECRET`.
+3. Point a webhook at `/api/razorpay/webhook` with the subscription events.
+
+## Tests
+
+```bash
+npm test           # unit tests: DTAA, FTC, invoice rules, dates, Razorpay signatures
+npm run typecheck
+# End-to-end (local Supabase running, app built with OCR_PROVIDER=mock and started):
+npm run build && npm start &
+npm run e2e        # login, settings, LUT, client, W-8, invoice, payment, upload, FTC, CSV
+```
+
+## Deploy
+
+1. Push to GitHub and import the repo in Vercel.
+2. Set the same env vars, plus `NEXT_PUBLIC_SITE_URL`.
+3. Add `https://<your-domain>/auth/callback` to the Supabase redirect URLs.
+
+> Tax logic is an estimate for planning, not advice. Have a CA review `docs/RESEARCH.md` and `src/lib/tax/` before launch, and re-verify every April.

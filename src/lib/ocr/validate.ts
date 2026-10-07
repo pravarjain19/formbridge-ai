@@ -92,7 +92,7 @@ export function validateExtraction(x: OcrExtraction, ctx: { servicesPerformedInU
       issues.push({
         code: "WITHHOLDING_ON_FOREIGN_SOURCE_SERVICES",
         severity: "error",
-        message: "US tax was withheld on services your client profile says were performed entirely outside the US. That income is foreign-source; seek a refund from the withholding agent or via Form 1040-NR before relying on an Indian FTC claim.",
+        message: "US tax was withheld on services performed entirely outside the US. That income is foreign-source; seek a refund from the withholding agent or via Form 1040-NR before relying on an Indian FTC claim.",
       });
     }
   }
@@ -130,11 +130,4 @@ export function validateExtraction(x: OcrExtraction, ctx: { servicesPerformedInU
   }
 
   return issues;
-}
-
-/** Indian financial year label for an ISO date: '2026-05-10' -> '2026-27'. Mirrors public.indian_fy(). */
-export function indianFy(isoDate: string): string {
-  const [y, m] = isoDate.split("-").map(Number);
-  const start = m >= 4 ? y : y - 1;
-  return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
 }

@@ -1,8 +1,15 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { extractTaxDocument, OCR_MODEL, type SupportedMime } from "@/lib/ocr/extract";
+import {
+  getOcrProvider,
+  MAX_UPLOAD_BYTES as MAX_BYTES,
+  OcrProviderError,
+  SUPPORTED_MIME,
+  type ExtractResult,
+  type SupportedMime,
+} from "@/lib/ocr/providers";
 import { OCR_SCHEMA_VERSION, type OcrExtraction } from "@/lib/ocr/schema";
+import { PLANS, type Plan } from "@/lib/plans";
 import { validateExtraction, type ValidationIssue } from "@/lib/ocr/validate";
 
 /**
@@ -19,8 +26,6 @@ import { validateExtraction, type ValidationIssue } from "@/lib/ocr/validate";
 export const runtime = "nodejs";
 export const maxDuration = 300; // large scanned PDFs can take a while
 
-const SUPPORTED_MIME = new Set<SupportedMime>(["application/pdf", "image/png", "image/jpeg", "image/webp"]);
-const MAX_BYTES = 20 * 1024 * 1024;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const jsonError = (status: number, error: string, extra: Record<string, unknown> = {}) =>
@@ -34,6 +39,15 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError || !auth.user) return jsonError(401, "unauthenticated");
   const userId = auth.user.id;
+
+  // Monthly quota per plan (each run is a paid model call).
+  const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+  const [{ data: profile }, { count: used }] = await Promise.all([
+    supabase.from("profiles").select("plan").eq("id", userId).single(),
+    supabase.from("ocr_runs").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
+  ]);
+  const limit = PLANS[(profile?.plan ?? "free") as Plan].ocrPerMonth;
+  if ((used ?? 0) >= limit) return jsonError(402, "plan_limit_reached", { limit });
 
   // Claim the document atomically so double-clicks don't spawn parallel paid OCR runs.
   const { data: doc, error: claimError } = await supabase
@@ -52,7 +66,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const releaseDocument = (status: "uploaded" | "failed") =>
     supabase.from("documents").update({ status }).eq("id", documentId);
 
-  if (!SUPPORTED_MIME.has(doc.mime_type as SupportedMime) || doc.size_bytes > MAX_BYTES) {
+  if (!SUPPORTED_MIME.has(doc.mime_type) || doc.size_bytes > MAX_BYTES) {
     await releaseDocument("failed");
     return jsonError(415, "unsupported_file");
   }
@@ -73,9 +87,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         ?.services_performed_in_us
     : undefined;
 
+  const provider = getOcrProvider();
   const { data: run, error: runError } = await supabase
     .from("ocr_runs")
-    .insert({ document_id: documentId, user_id: userId, model: OCR_MODEL, schema_version: OCR_SCHEMA_VERSION })
+    .insert({ document_id: documentId, user_id: userId, model: `${provider.name}:${provider.model}`, schema_version: OCR_SCHEMA_VERSION })
     .select("id")
     .single();
   if (runError || !run) {
@@ -91,9 +106,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       .eq("id", run.id);
 
   // ---- Model call -----------------------------------------------------------
-  let result: Awaited<ReturnType<typeof extractTaxDocument>>;
+  let result: ExtractResult;
   try {
-    result = await extractTaxDocument({
+    result = await provider.extract({
       bytes,
       mimeType: doc.mime_type as SupportedMime,
       docTypeHint: doc.doc_type === "other" ? null : doc.doc_type,
@@ -102,9 +117,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const message = err instanceof Error ? err.message : String(err);
     await finishRun({ status: "failed", error_message: message.slice(0, 2000) });
     await releaseDocument("uploaded");
-    if (err instanceof Anthropic.RateLimitError) return jsonError(429, "ocr_rate_limited", { retryable: true });
-    if (err instanceof Anthropic.BadRequestError) return jsonError(422, "ocr_rejected_input");
-    if (err instanceof Anthropic.APIError) return jsonError(502, "ocr_upstream_error", { retryable: true });
+    if (err instanceof OcrProviderError) {
+      const code = { 429: "ocr_rate_limited", 422: "ocr_rejected_input", 502: "ocr_upstream_error" }[err.status];
+      return jsonError(err.status, code, { retryable: err.retryable });
+    }
     return jsonError(500, "ocr_failed");
   }
 
@@ -137,7 +153,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   await finishRun({
     status: "succeeded",
-    model: result.servedByModel,
+    model: `${provider.name}:${result.servedByModel}`,
     detected_doc_type: extraction.detected_doc_type,
     extracted: extraction,
     validation_issues: issues,
