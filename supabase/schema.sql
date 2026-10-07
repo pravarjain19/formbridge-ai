@@ -481,3 +481,34 @@ create policy tax_docs_insert on storage.objects for insert to authenticated
 drop policy if exists tax_docs_delete on storage.objects;
 create policy tax_docs_delete on storage.objects for delete to authenticated
   using (bucket_id = 'tax-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- =============================================================================
+-- withholding_deductions: the individual payments a 1042-S total is made of.
+-- FTC is per Indian FY and converted per deduction month (Rule 128 / Rule 76),
+-- so a calendar-year slip is broken into dated deductions here.
+-- =============================================================================
+create table if not exists public.withholding_deductions (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null references auth.users (id) on delete cascade,
+  withholding_id    uuid not null references public.tax_withholdings (id) on delete cascade,
+  deducted_on       date not null,
+  financial_year    text generated always as (public.indian_fy(deducted_on)) stored,
+  gross_usd         numeric(14,2) not null check (gross_usd >= 0),
+  tax_usd           numeric(14,2) not null check (tax_usd >= 0),
+  sbi_tt_rate       numeric(12,4) check (sbi_tt_rate > 0),   -- last day of the month before deducted_on
+  gross_inr         numeric(16,2) generated always as (round(gross_usd * sbi_tt_rate, 2)) stored,
+  tax_inr           numeric(16,2) generated always as (round(tax_usd * sbi_tt_rate, 2)) stored,
+  created_at        timestamptz not null default now()
+);
+create index if not exists deductions_withholding_idx on public.withholding_deductions (withholding_id);
+create index if not exists deductions_user_fy_idx on public.withholding_deductions (user_id, financial_year);
+
+alter table public.withholding_deductions enable row level security;
+drop policy if exists withholding_deductions_owner_all on public.withholding_deductions;
+create policy withholding_deductions_owner_all on public.withholding_deductions for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+drop policy if exists deductions_parent_owned on public.withholding_deductions;
+create policy deductions_parent_owned on public.withholding_deductions as restrictive for all to authenticated
+  using (true)
+  with check (exists (select 1 from public.tax_withholdings w where w.id = withholding_id and w.user_id = (select auth.uid())));
