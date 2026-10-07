@@ -131,10 +131,3 @@ export function validateExtraction(x: OcrExtraction, ctx: { servicesPerformedInU
 
   return issues;
 }
-
-/** Indian financial year label for an ISO date: '2026-05-10' -> '2026-27'. Mirrors public.indian_fy(). */
-export function indianFy(isoDate: string): string {
-  const [y, m] = isoDate.split("-").map(Number);
-  const start = m >= 4 ? y : y - 1;
-  return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
-}
