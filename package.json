@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test 'src/**/*.test.ts'"
+    "test": "tsx --test 'src/**/*.test.ts'",
+    "e2e": "node e2e/invoicing.mjs && node e2e/documents.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
+    "playwright-core": "^1.63.0",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }

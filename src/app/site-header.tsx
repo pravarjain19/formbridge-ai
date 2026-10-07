@@ -13,6 +13,9 @@ export function SiteHeader() {
         <Link href="/" className="text-slate-600 hover:text-slate-900">
           Check a 1042-S
         </Link>
+        <Link href="/guides" className="text-slate-600 hover:text-slate-900">
+          Guides
+        </Link>
         <Link href="/app" className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white">
           Dashboard
         </Link>
