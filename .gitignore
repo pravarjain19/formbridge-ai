@@ -3,3 +3,8 @@ node_modules/
 *.tsbuildinfo
 .env*.local
 .env
+
+# Local Supabase CLI state (scripts/db-local.mjs copies schema.sql into migrations)
+supabase/migrations/
+supabase/.temp/
+supabase/.branches/

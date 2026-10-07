@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { SUPABASE_PUBLIC_KEY, SUPABASE_URL } from "@/lib/supabase/env";
 
 /**
  * Refreshes the Supabase session cookie on every matched request and keeps
@@ -7,8 +8,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * so the public pages (calculator, OCR preview) still work locally.
  */
 export async function middleware(request: NextRequest) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = SUPABASE_URL;
+  const key = SUPABASE_PUBLIC_KEY;
   if (!url || !key) {
     if (request.nextUrl.pathname.startsWith("/app")) {
       return NextResponse.redirect(new URL("/setup", request.url));

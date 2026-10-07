@@ -41,16 +41,17 @@ npm run dev        # http://localhost:3000
 **Option A: Supabase cloud.** The free plan is enough.
 1. Create a project at supabase.com.
 2. Run `supabase/schema.sql` in the SQL editor.
-3. Copy the URL and anon key into `.env.local`.
-4. Under Authentication → URL Configuration, add `http://localhost:3000/auth/callback`.
+3. Copy the project URL and the publishable key into `.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Older projects use `NEXT_PUBLIC_SUPABASE_ANON_KEY` instead.
+4. Under Authentication → URL Configuration, set Site URL to `http://localhost:3000` and add `http://localhost:3000/auth/callback` to the redirect URLs.
 
-**Option B: local Supabase** (needs Docker):
+**Option B: Supabase on your computer** (needs Docker Desktop running):
 ```bash
-npx supabase init
-mkdir -p supabase/migrations && cp supabase/schema.sql supabase/migrations/20261007000000_init.sql
-npx supabase start          # prints the URL, anon key and service-role key
+npm run db:start   # starts Supabase, loads supabase/schema.sql, writes .env.local
+npm run dev        # http://localhost:3000
 ```
-Login emails then arrive in Mailpit at http://127.0.0.1:54324.
+- Login emails land in Mailpit at http://127.0.0.1:54324.
+- The database UI (Studio) is at http://127.0.0.1:54323.
+- `npm run db:reset` wipes the data and re-applies the schema. `npm run db:stop` stops it.
 
 **3. AI document reading:** set `OCR_PROVIDER` in `.env.local`:
 - `mock`: sample data, free.

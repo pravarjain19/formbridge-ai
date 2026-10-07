@@ -7,8 +7,11 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test 'src/**/*.test.ts'",
-    "e2e": "node e2e/invoicing.mjs && node e2e/documents.mjs"
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "e2e": "node e2e/invoicing.mjs && node e2e/documents.mjs",
+    "db:start": "node scripts/db-local.mjs start",
+    "db:reset": "node scripts/db-local.mjs reset",
+    "db:stop": "node scripts/db-local.mjs stop"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

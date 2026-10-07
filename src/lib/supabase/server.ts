@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { SUPABASE_PUBLIC_KEY, SUPABASE_URL, supabaseConfigured } from "./env";
 
-export const supabaseConfigured = () =>
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+export { supabaseConfigured };
 
 /**
  * Request-scoped Supabase client that acts as the signed-in user, so every
@@ -13,8 +13,8 @@ export const supabaseConfigured = () =>
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_PUBLIC_KEY,
     {
       cookies: {
         getAll: () => cookieStore.getAll(),

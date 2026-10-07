@@ -10,8 +10,9 @@ export default function SetupPage() {
         <li>Create a project at supabase.com.</li>
         <li>In the SQL editor, run <code>supabase/schema.sql</code> from this repo.</li>
         <li>
-          In Project Settings → API, copy the URL and anon key into <code>.env.local</code> as{" "}
-          <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>.
+          In Project Settings → API Keys, copy the project URL and the publishable key into <code>.env.local</code> as{" "}
+          <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> (older projects:{" "}
+          <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>).
         </li>
         <li>
           In Authentication → URL Configuration, add <code>http://localhost:3000/auth/callback</code> to the redirect
