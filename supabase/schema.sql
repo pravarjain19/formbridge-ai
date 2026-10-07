@@ -512,3 +512,14 @@ drop policy if exists deductions_parent_owned on public.withholding_deductions;
 create policy deductions_parent_owned on public.withholding_deductions as restrictive for all to authenticated
   using (true)
   with check (exists (select 1 from public.tax_withholdings w where w.id = withholding_id and w.user_id = (select auth.uid())));
+
+-- =============================================================================
+-- Billing: users may edit their profile, but never their plan or billing ids.
+-- Plan changes happen server-side (service role) after Razorpay verification.
+-- =============================================================================
+alter table public.profiles add column if not exists razorpay_subscription_id text;
+alter table public.profiles add column if not exists plan_renews_at timestamptz;
+
+revoke update on public.profiles from authenticated, anon;
+grant update (legal_name, trade_name, entity_kind, pan_masked, pan_hash, gstin, state_code, address, us_tin)
+  on public.profiles to authenticated;

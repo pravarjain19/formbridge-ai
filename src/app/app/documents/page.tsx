@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/supabase/server";
 import type { ValidationIssue } from "@/lib/ocr/validate";
 import { Badge, Card, PageTitle } from "../ui";
+import { ReparseButton } from "./reparse-button";
 import { Uploader } from "./uploader";
 
 const TONE = {
@@ -71,7 +72,12 @@ export default async function DocumentsPage() {
                     {run?.overall_confidence != null && ` · ${(run.overall_confidence * 100).toFixed(0)}% confidence`}
                   </p>
                 </div>
-                <Badge tone={TONE[d.status as keyof typeof TONE]}>{d.status.replace("_", " ")}</Badge>
+                <div>
+                  <Badge tone={TONE[d.status as keyof typeof TONE]}>{d.status.replace("_", " ")}</Badge>
+                  {(d.status === "uploaded" || d.status === "failed" || d.status === "needs_review") && (
+                    <ReparseButton documentId={d.id} />
+                  )}
+                </div>
               </div>
               {issues.length > 0 && (
                 <ul className="mt-3 space-y-1 text-sm">

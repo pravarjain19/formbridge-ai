@@ -9,6 +9,7 @@ import {
   type SupportedMime,
 } from "@/lib/ocr/providers";
 import { OCR_SCHEMA_VERSION, type OcrExtraction } from "@/lib/ocr/schema";
+import { PLANS, type Plan } from "@/lib/plans";
 import { validateExtraction, type ValidationIssue } from "@/lib/ocr/validate";
 
 /**
@@ -38,6 +39,15 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError || !auth.user) return jsonError(401, "unauthenticated");
   const userId = auth.user.id;
+
+  // Monthly quota per plan (each run is a paid model call).
+  const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+  const [{ data: profile }, { count: used }] = await Promise.all([
+    supabase.from("profiles").select("plan").eq("id", userId).single(),
+    supabase.from("ocr_runs").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
+  ]);
+  const limit = PLANS[(profile?.plan ?? "free") as Plan].ocrPerMonth;
+  if ((used ?? 0) >= limit) return jsonError(402, "plan_limit_reached", { limit });
 
   // Claim the document atomically so double-clicks don't spawn parallel paid OCR runs.
   const { data: doc, error: claimError } = await supabase

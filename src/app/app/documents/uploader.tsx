@@ -65,6 +65,7 @@ export function Uploader({ clients }: { clients: { id: string; legal_name: strin
       setStatus("Reading the document…");
       const res = await fetch(`/api/documents/${id}/parse`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
+      if (res.status === 402) throw new Error(`Uploaded, but you've used all ${body.limit} document checks this month. Upgrade in Plan & billing.`);
       if (!res.ok) throw new Error(`Uploaded, but reading failed: ${body.error ?? res.status}`);
 
       form.reset();
